@@ -63,9 +63,13 @@ class TodoController extends Controller
             $image->move(public_path('todo'), $imgName);
         }
 
+        $statuses = ['tidak aktif', 'aktif'];
+        $randomStatus = $statuses[array_rand($statuses)];
+
         $create = Todo::create([
             'title' => $request->title,
             'description' => $request->description,
+            'status' => $randomStatus,
             'image' => $imgName
         ]);
 
