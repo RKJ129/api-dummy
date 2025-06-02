@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title', 100);
             $table->text('description');
-            $table->enum('status', ['aktif', 'tidak aktif']);
+            $table->enum('status', ['aktif', 'tidak aktif'])->default('aktif');
             $table->string('image', 100)->nullable();
             $table->timestamps();
         });
