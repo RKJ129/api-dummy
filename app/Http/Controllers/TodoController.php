@@ -14,9 +14,21 @@ class TodoController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $data = Todo::all();
+        $data = Todo::query()
+            ->when($request->filled('search'), function($query) use ($request) {
+                $query->where(function ($q) use ($request) {
+                    $q->where('title', 'like', '%' . $request->search . '%')
+                    ->orWhere('description', 'like', '%' . $request->search . '%')
+                    ->orWhere('status', 'like', '%' . $request->search . '%');
+                });
+            })
+            ->when($request->filled('status'), function ($query) use ($request) {
+                $query->where('status', $request->status);
+            })
+            ->get();
+
         return new TodoResource(true, 'Berhasil mengambil data!', $data);
     }
 
@@ -109,13 +121,15 @@ class TodoController extends Controller
             $newImage->move(public_path('todo'), $newImageName);
         }
 
-        $update = $todo->update([
+        $todo->update([
             'title' => $request->title,
             'description' => $request->description,
             'image' => $newImageName
         ]);
 
-        return new TodoResource(true, 'Data berhasil diubah', $update);
+        $todo->fresh();
+
+        return new TodoResource(true, 'Data berhasil diubah', $todo);
     }
 
     /**
