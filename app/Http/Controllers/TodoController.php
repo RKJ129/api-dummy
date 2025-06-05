@@ -27,9 +27,17 @@ class TodoController extends Controller
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
             })
-            ->get();
+            ->latest()
+            ->paginate(10);
+            // ->get();
 
-        return new TodoResource(true, 'Berhasil mengambil data!', $data);
+        return response()->json([
+            'success'=>true,
+            'message'=>'Berhasil mengambil data',
+            'data'=>$data,
+        ]);
+
+        // return new TodoResource(true, 'Berhasil mengambil data!', $data);
     }
 
     /**
@@ -47,9 +55,10 @@ class TodoController extends Controller
     {
         //define validation rules
         $validator = Validator::make($request->all(), [
-            'image'     => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'title'     => 'required',
             'description'   => 'required',
+            'status' =>'required',
         ]);
 
         //check if validation fails
@@ -57,19 +66,35 @@ class TodoController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $image = $request->file('image');
-        if($image) {
-            $imgName = $image->hashName();
-            $image->move(public_path('todo'), $imgName);
+        $imgName = null;
+        if($request->hasFile('image')){
+            $image = $request->file('image');
+            $imgName = 'todo/' . $image->hashName();
+            $image->move(public_path('todo'), basename($imgName));
         }
 
-        $create = Todo::create([
+        $todo = Todo::create([
             'title' => $request->title,
             'description' => $request->description,
-            'image' => $imgName
+            'status' => $request->status,
+            'image' => $imgName,
         ]);
 
-        return new TodoResource(true, 'Data berhasil ditambahkan', $create);
+        return new TodoResource(true, 'Data berhasil ditambahkan', $todo);
+
+        // $image = $request->file('image');
+        // if($image) {
+        //     $imgName = $image->hashName();
+        //     $image->move(public_path('todo'), $imgName);
+        // }
+
+        // $create = Todo::create([
+        //     'title' => $request->title,
+        //     'description' => $request->description,
+        //     'image' => $imgName
+        // ]);
+
+        // return new TodoResource(true, 'Data berhasil ditambahkan', $create);
     }
 
     /**
@@ -93,12 +118,31 @@ class TodoController extends Controller
      */
     public function update(Request $request, Todo $todo)
     {
+
+        //cek apakah hanya field status yg dikirim
+        if ($request->has('status') && !$request->has('title')&& !$request->has('description')) {
+            $validator = Validator::make($request->all(),[
+                'status' => 'required'
+            ]);
+
+            if ($validator->fails()){
+                return response()->json($validator->errors(), 422);
+            }
+
+            $todo->update([
+                'status' => $request->status
+            ]);
+
+            return new TodoResource(true, 'Status berhasil diubah', $todo->fresh());
+        }
+
         // return new TodoResource(true, 'Data berhasil diubah', $request->input('title'));
         // define validation rules
         $validator = Validator::make($request->all(), [
-            'image'     => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'title'     => 'required',
             'description'   => 'required',
+            'status' => 'required'
         ]);
 
         //check if validation fails
@@ -106,45 +150,85 @@ class TodoController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $newImage = $request->file('image');
+        $imgName = $todo->image;
 
-        if ($newImage) {
-            $oldImagePath = public_path('todo/' . $todo->image);
+        if($request->hasFile('image')){
+            $newImage = $request->file('image');
 
-            // Hapus file lama jika ada
-            if (File::exists($oldImagePath)) {
-                File::delete($oldImagePath);
+            //hapus gambar lama
+            if ($imgName && File::exists(public_path($imgName))){
+                File::delete(public_path($imgName));
             }
 
-            // Simpan file baru
-            $newImageName = $newImage->hashName();
-            $newImage->move(public_path('todo'), $newImageName);
+            //simpan gambar baru
+            $imgName = 'todo/' . $newImage->hashName();
+            $newImage->move(public_path('todo'), basename($imgName));
         }
 
         $todo->update([
-            'title' => $request->title,
-            'description' => $request->description,
-            'image' => $newImageName
+            'title'=>$request->title,
+            'description'=>$request->description,
+            'status'=>$request->status,
+            'image'=>$imgName,
         ]);
 
-        $todo->fresh();
+        return new TodoResource(true, 'Data berhasil diubah', $todo->fresh());
 
-        return new TodoResource(true, 'Data berhasil diubah', $todo);
+        // $newImage = $request->file('image');
+
+        // if ($newImage) {
+        //     $oldImagePath = public_path('todo/' . $todo->image);
+
+        //     // Hapus file lama jika ada
+        //     if (File::exists($oldImagePath)) {
+        //         File::delete($oldImagePath);
+        //     }
+
+        //     // Simpan file baru
+        //     $newImageName = $newImage->hashName();
+        //     $newImage->move(public_path('todo'), $newImageName);
+        // }
+
+        // $todo->update([
+        //     'title' => $request->title,
+        //     'description' => $request->description,
+        //     'status' => $request->status,
+        //     'image' => $newImageName
+        // ]);
+
+        // $todo->fresh();
+
+        // return new TodoResource(true, 'Data berhasil diubah', $todo);
     }
 
     /**
      * Remove the specified resource from storage.
      */
+
     public function destroy(Todo $todo)
     {
-        $imagePath  = $todo->image;
-        $path = public_path('todo/' . $imagePath );
-        if($imagePath  && File::exists($path)) {
-            File::delete($path);
+        if ($todo->image && File::exists(public_path($todo->image))){
+            File::delete(public_path($todo->image));
         }
 
         $todo->delete();
 
-        return new TodoResource(true, 'Data telah dihapus!', null);
+        return response()->json([
+        'success' => true,
+        'message' => 'Data telah dihapus',
+        'data' => null,
+        ], 200);
     }
+    // public function destroy(Todo $todo)
+    // {
+    //     $imagePath  = $todo->image;
+    //     $path = public_path('todo/' . $imagePath );
+    //     if($imagePath  && File::exists($path)) {
+    //         File::delete($path);
+    //     }
+
+    //     $todo->delete();
+
+    //     return new TodoResource(true, 'Data telah dihapus!', null);
+    // }
 }

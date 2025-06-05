@@ -11,7 +11,7 @@ class TodoResource extends JsonResource
     // define property
     public $status;
     public $message;
-    public $resource;
+    // public $resource;
 
     /**
      * __construct
@@ -38,7 +38,13 @@ class TodoResource extends JsonResource
         return [
             'success' => $this->status,
             'message' => $this->message,
-            'data' => $this->resource,
+            'data' => [
+                'id' => $this->id,
+                'title' => $this->title,
+                'description' => $this->description,
+                'status' => $this->status,
+                'image' => $this->image_url,
+            ],
         ];
     }
 }
