@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('todo', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('title', 100);
             $table->text('description');
             $table->enum('status', ['aktif', 'tidak aktif'])->default('aktif');

@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 Route::apiResource('books', BookController::class);
 Route::post('books/{book}/ratings', [RatingController::class, 'store']);
 
-Route::apiResource('todo', TodoController::class);
+// Route::apiResource('todo', TodoController::class);
 
 Route::post('register',RegisterController::class);
 Route::post('login', LoginController::class);
@@ -21,3 +21,8 @@ Route::post('logout', LogoutController::class);
 Route::middleware('auth:api')->get('user', function (Request $request){
     return $request->user();
 });
+
+Route::middleware('auth:api')->group(function () {
+    Route::apiResource('todo', TodoController::class);
+});
+

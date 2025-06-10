@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -11,11 +13,17 @@ class DatabaseSeeder extends Seeder
      * Seed the application's database.
      */
     public function run(): void
-    {
-        // User::factory(10)->create();
+{
+    // Buat user dummy
+    $user = User::create([
+        'name' => 'User Dummy',
+        'email' => 'dummy@example.com',
+        'password' => Hash::make('password'), // password: 'password'
+    ]);
 
-        $this->call([
-            TodoSeeder::class
-        ]);
-    }
+    // Panggil TodoSeeder dan kirim user
+    $this->callWith(\Database\Seeders\TodoSeeder::class, [
+        'user' => $user
+    ]);
+}
 }

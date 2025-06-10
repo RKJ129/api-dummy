@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Resources\TodoResource;
 use App\Models\Todo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
-use PHPUnit\Framework\Constraint\FileExists;
+use Illuminate\Auth\AuthManager;
+use PHPUnit\Framework\Constraint\FiluseeExists;
 
 class TodoController extends Controller
 {
@@ -16,7 +18,9 @@ class TodoController extends Controller
      */
     public function index(Request $request)
     {
+        $user = auth('api')->user();
         $data = Todo::query()
+            ->where('user_id', $user->id)
             ->when($request->filled('search'), function($query) use ($request) {
                 $query->where(function ($q) use ($request) {
                     $q->where('title', 'like', '%' . $request->search . '%')
@@ -34,7 +38,7 @@ class TodoController extends Controller
         return response()->json([
             'success'=>true,
             'message'=>'Berhasil mengambil data',
-            'data'=>$data,
+            'data'=> $data,
         ]);
 
         // return new TodoResource(true, 'Berhasil mengambil data!', $data);
@@ -78,6 +82,7 @@ class TodoController extends Controller
             'description' => $request->description,
             'status' => $request->status,
             'image' => $imgName,
+            'user_id' => auth('api')->id()
         ]);
 
         return new TodoResource(true, 'Data berhasil ditambahkan', $todo);
@@ -103,7 +108,22 @@ class TodoController extends Controller
     public function show(string $id)
     {
         //
-    }
+        $user = auth('api')->user();
+
+        $todo = Todo::where('id', $id)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+        if (!$todo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan atau bukan milik user ini',
+                'data' => null
+             ], 404);
+         }
+
+        return new TodoResource(true, 'Data berhasil ditemukan', $todo);
+        }
 
     /**
      * Show the form for editing the specified resource.
