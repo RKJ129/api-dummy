@@ -19,8 +19,11 @@ class TodoController extends Controller
     public function index(Request $request)
     {
         $user = auth('api')->user();
-        $data = Todo::query()
-            ->where('user_id', $user->id)
+        $data = Todo::with('user')
+            ->when($request->filled('mine') && $request->mine == 'true', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            // ->where('user_id', $user->id)
             ->when($request->filled('search'), function($query) use ($request) {
                 $query->where(function ($q) use ($request) {
                     $q->where('title', 'like', '%' . $request->search . '%')
