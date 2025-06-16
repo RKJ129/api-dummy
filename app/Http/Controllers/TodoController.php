@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\TodoResource;
+use App\Models\Image;
 use App\Models\Todo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Auth\AuthManager;
+use Illuminate\Support\Facades\DB;
+use PhpParser\Node\Stmt\TryCatch;
 use PHPUnit\Framework\Constraint\FiluseeExists;
 
 class TodoController extends Controller
@@ -19,7 +22,7 @@ class TodoController extends Controller
     public function index(Request $request)
     {
         $user = auth('api')->user();
-        $data = Todo::with('user')
+        $data = Todo::with(['user', 'images'])
             ->when($request->filled('mine') && $request->mine == 'true', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
@@ -62,7 +65,7 @@ class TodoController extends Controller
     {
         // Validasi
         $validator = Validator::make($request->all(), [
-            'image'       => 'nullable|array',
+            'image'       => 'nullable',
             'image.*'     => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'title'       => 'required',
             'description' => 'required',
@@ -72,25 +75,37 @@ class TodoController extends Controller
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
+        DB::beginTransaction();
+        try {
+            $todo = Todo::create([
+                'title'       => $request->title,
+                'description' => $request->description,
+                'status'      => $request->status,
+                // 'image'       => json_encode($imgNames),
+                'user_id'     => auth('api')->id(),
+            ]);
 
-        $imgNames = [];
-        if ($request->hasFile('image')) {
-            foreach ($request->file('image') as $img) {
-                $imgName = 'todo/' . $img->hashName();
-                $img->move(public_path('todo'), basename($imgName));
-                $imgNames[] = $imgName;
+            if ($request->hasFile('image')) {
+                foreach ($request->file('image') as $img) {
+                    $imgName = time() . '_' .  $img->hashName();
+                    $img->move(public_path('todo'), $imgName);
+                    Image::create([
+                        'todo_id' => $todo->id,
+                        'image' => $imgName
+                    ]);
+                }
             }
+            
+            DB::commit();
+            return new TodoResource(true, 'Data berhasil ditambahkan', $todo);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menambahkan data!',
+                'error' => $th->getMessage()
+            ]);
         }
-
-        $todo = Todo::create([
-            'title'       => $request->title,
-            'description' => $request->description,
-            'status'      => $request->status,
-            'image'       => json_encode($imgNames),
-            'user_id'     => auth('api')->id(),
-        ]);
-
-        return new TodoResource(true, 'Data berhasil ditambahkan', $todo);
     }
 
     /**
@@ -146,7 +161,7 @@ class TodoController extends Controller
 
         // Validasi lengkap
         $validator = Validator::make($request->all(), [
-            'image'       => 'nullable|array',
+            'image'       => 'nullable',
             'image.*'     => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'title'       => 'required',
             'description' => 'required',
@@ -157,29 +172,41 @@ class TodoController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $imgNames = json_decode($todo->image, true) ?? [];
+
+
+        $images = Image::where('todo_id', $todo->id);
+        // return response()->json([
+        //     'debug' => $images
+        // ]);
 
         // Jika ada gambar baru, hapus lama lalu simpan baru
         if ($request->hasFile('image')) {
-            foreach ($imgNames as $oldImg) {
-                if (File::exists(public_path($oldImg))) {
-                    File::delete(public_path($oldImg));
+            if($images) {
+                foreach ($images->get() as $image) {
+                    $oldImg = $image->image;
+                    if (File::exists(public_path('todo/' . $oldImg))) {
+                        File::delete(public_path('todo/' . $oldImg));
+                    }
                 }
             }
 
-            $imgNames = [];
+            $images->delete();
+
             foreach ($request->file('image') as $img) {
-                $imgName = 'todo/' . $img->hashName();
-                $img->move(public_path('todo'), basename($imgName));
-                $imgNames[] = $imgName;
+                $imgName = time() . '_' . $img->hashName();
+                $img->move(public_path('todo'), $imgName);
+                Image::create([
+                    'todo_id' => $todo->id,
+                    'image' => $imgName
+                ]);
             }
         }
 
         $todo->update([
+            'user_id' => auth('api')->id(),
             'title'       => $request->title,
             'description' => $request->description,
             'status'      => $request->status,
-            'image'       => json_encode($imgNames ?? []),
         ]);
 
         return new TodoResource(true, 'Data berhasil diubah', $todo->fresh());
@@ -191,11 +218,12 @@ class TodoController extends Controller
 
     public function destroy(Todo $todo)
     {
-        if ($todo->image) {
-            $images = is_array($todo->image) ? $todo->image : json_decode($todo->image, true);
+        $images = Image::where('todo_id', $todo->id)->get();
+        if($images) {
             foreach ($images as $img) {
-                if (File::exists(public_path($img))) {
-                    File::delete(public_path($img));
+                $oldImage = $img->image;
+                if (File::exists(public_path('todo/' . $oldImage))) {
+                    File::delete(public_path('todo/' . $oldImage));
                 }
             }
         }

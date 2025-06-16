@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('todo', function (Blueprint $table) {
+        Schema::create('images', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('title', 100);
-            $table->text('description');
-            $table->enum('status', ['aktif', 'tidak aktif'])->default('aktif');
-            // $table->string('image', 100)->nullable();
+            $table->unsignedBigInteger('todo_id');
+            $table->string('image', 255);
             $table->timestamps();
+
+             $table->foreign('todo_id')->references('id')->on('todo')->onDelete('cascade');
         });
     }
 
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('todo');
+        Schema::dropIfExists('images');
     }
 };

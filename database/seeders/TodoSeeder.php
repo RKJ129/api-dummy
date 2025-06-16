@@ -25,7 +25,7 @@ class TodoSeeder extends Seeder
                 'title' => 'Todo ' . Str::random(10),
                 'description' => 'Deskripsi ' . Str::random(30),
                 'status' => $statuses[array_rand($statuses)],
-                'image' => 'default.jpeg',
+                // 'image' => 'default.jpeg',
             ]);
         }
     }
