@@ -21,7 +21,7 @@ class TodoController extends Controller
     public function index(Request $request)
     {
         $user = auth('api')->user();
-        $data = Todo::with(['images', 'comments'])
+        $data = Todo::with(['user', 'images', 'comments'])
             ->withCount(['likeds', 'dislikeds', 'comments'])
             ->when($request->filled('mine') && $request->mine == 'true', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
@@ -111,14 +111,12 @@ class TodoController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Todo $todo)
     {
         //
         $user = auth('api')->user();
 
-        $todo = Todo::where('id', $id)
-                    ->where('user_id', $user->id)
-                    ->first();
+        $todo->load(['user', 'images', 'comments']);
 
         if (!$todo) {
             return response()->json([
@@ -128,8 +126,12 @@ class TodoController extends Controller
              ], 404);
          }
 
-        return new TodoResource(true, 'Data berhasil ditemukan', $todo);
-        }
+         return response()->json([
+            'success' => true,
+            'message' => 'Berhasil mengambil data!',
+            'data' => $todo
+         ]);
+    }
 
     /**
      * Show the form for editing the specified resource.
