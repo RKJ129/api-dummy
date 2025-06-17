@@ -95,7 +95,7 @@ class TodoController extends Controller
                     ]);
                 }
             }
-            
+
             DB::commit();
             return new TodoResource(true, 'Data berhasil ditambahkan', $todo);
         } catch (\Throwable $th) {
@@ -290,6 +290,25 @@ class TodoController extends Controller
             // 'data' => $comment
         ]);
     }
+
+    public function getComments($id)
+    {
+        $todo = Todo::with('comments')->find($id);
+
+        if (!$todo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Post tidak ditemukan'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil mengambil komentar',
+            'data' => $todo->comments
+        ]);
+    }
+
 
 
 }
