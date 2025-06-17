@@ -3,16 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\TodoResource;
+use App\Models\Comment;
+use App\Models\Disliked;
 use App\Models\Image;
+use App\Models\Liked;
 use App\Models\Todo;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Auth\AuthManager;
 use Illuminate\Support\Facades\DB;
-use PhpParser\Node\Stmt\TryCatch;
-use PHPUnit\Framework\Constraint\FiluseeExists;
 
 class TodoController extends Controller
 {
@@ -22,7 +21,8 @@ class TodoController extends Controller
     public function index(Request $request)
     {
         $user = auth('api')->user();
-        $data = Todo::with(['user', 'images'])
+        $data = Todo::with(['images', 'comments'])
+            ->withCount(['likeds', 'dislikeds', 'comments'])
             ->when($request->filled('mine') && $request->mine == 'true', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
@@ -236,4 +236,58 @@ class TodoController extends Controller
             'data'    => null,
         ], 200);
     }
+
+    public function like(Todo $todo)
+    {
+        $like = Liked::create([
+            'todo_id' => $todo->id,
+            'user_id' => auth('api')->id()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil menyukai',
+            'data' => $like
+        ]);
+    }
+
+    public function dislike(Todo $todo)
+    {
+        Disliked::create([
+            'todo_id' => $todo->id,
+            'user_id' => auth('api')->id()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil tidak menyukai',
+            // 'data' => $like
+        ]);
+    }
+
+    public function comment(Request $request, Todo $todo)
+    {
+        // Validasi
+        $validator = Validator::make($request->all(), [
+            'comment' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        Comment::create([
+            'comment' => $request->comment,
+            'todo_id' => $todo->id,
+            'user_id' => auth('api')->id()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil menambahkan komentar!',
+            // 'data' => $comment
+        ]);
+    }
+
+
 }

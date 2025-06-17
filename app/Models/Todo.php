@@ -12,20 +12,6 @@ class Todo extends Model
     protected $table = 'todo';
     protected $fillable = ['title', 'description', 'status', 'user_id'];
 
-    //konversi kolom image ke array
-    // protected  $casts = [
-    //     'image' => 'array',
-    // ];
-
-    //accessor full url
-    // protected $appends =['image_url'];
-
-    // public function getImageUrlAttribute($value)
-    // {
-    //     // return $this->image ? asset($this->image) : null;
-    //     return $value ? json_decode($value, true) : [];
-    // }
-
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -35,4 +21,18 @@ class Todo extends Model
     {
         return $this->hasMany(Image::class, 'todo_id', 'id');
     }
+
+    public function likeds()
+    {
+        return $this->hasMany(Liked::class, 'todo_id', 'id');
+    }
+    public function dislikeds()
+    {
+        return $this->hasMany(Disliked::class, 'todo_id', 'id');
+    }
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'todo_id', 'id');
+    }
+
 }

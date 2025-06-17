@@ -24,5 +24,8 @@ Route::middleware('auth:api')->get('user', function (Request $request){
 
 Route::middleware('auth:api')->group(function () {
     Route::apiResource('todo', TodoController::class);
+    Route::post('todo/like/{todo}', [TodoController::class, 'like']);
+    Route::post('todo/dislike/{todo}', [TodoController::class, 'dislike']);
+    Route::post('todo/comment/{todo}', [TodoController::class, 'comment']);
 });
 

@@ -43,7 +43,7 @@ class TodoResource extends JsonResource
                 'title' => $this->title,
                 'description' => $this->description,
                 'status' => $this->status,
-                'image' => json_decode($this->image),
+                // 'image' => json_decode($this->image),
             ],
         ];
     }

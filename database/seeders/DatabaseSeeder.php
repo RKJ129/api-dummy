@@ -13,17 +13,24 @@ class DatabaseSeeder extends Seeder
      * Seed the application's database.
      */
     public function run(): void
-{
-    // Buat user dummy
-    $user = User::create([
-        'name' => 'User Dummy',
-        'email' => 'dummy@example.com',
-        'password' => Hash::make('password'), // password: 'password'
-    ]);
+    {
+        // Buat user dummy
+        $user = User::insert([
+            [
+                'name' => 'User Dummy',
+                'email' => 'dummy@example.com',
+                'password' => Hash::make('password'), // password: 'password'
+            ],
+            [
+                'name' => 'Randi',
+                'email' => 'randi@gmail.com',
+                'password' => Hash::make('rahasia123'), // password: 'password'
+            ],
+        ]);
 
-    // Panggil TodoSeeder dan kirim user
-    $this->callWith(\Database\Seeders\TodoSeeder::class, [
-        'user' => $user
-    ]);
-}
+        // Panggil TodoSeeder dan kirim user
+        $this->callWith(\Database\Seeders\TodoSeeder::class, [
+            'user' => $user
+        ]);
+    }
 }
