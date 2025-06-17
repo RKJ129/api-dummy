@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+
+use App\Models\Disliked;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -31,6 +33,11 @@ class DatabaseSeeder extends Seeder
         // Panggil TodoSeeder dan kirim user
         $this->callWith(\Database\Seeders\TodoSeeder::class, [
             'user' => $user
+        ]);
+        $this->call([
+            LikesSeeder::class,
+            DislikesSeeder::class,
+            CommentsSeeder::class
         ]);
     }
 }

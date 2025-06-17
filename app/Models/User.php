@@ -61,4 +61,20 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(Book::class);
     }
+
+    public function todos() {
+        return $this->hasMany(Todo::class, 'user_id', 'id');
+    }
+
+    public function likedTodos()
+    {
+        return $this->hasManyThrough(
+            Liked::class,
+            Todo::class,
+            'user_id',     // Foreign key on todos table
+            'todo_id',     // Foreign key on liked table
+            'id',          // Local key on users table
+            'id'           // Local key on todos table
+        );
+    }
 }

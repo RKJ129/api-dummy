@@ -19,9 +19,9 @@ class TodoSeeder extends Seeder
         $statuses = ['aktif', 'tidak aktif'];
 
 
-        for ($i = 0; $i < 200; $i++) {
+        for ($i = 0; $i < 20; $i++) {
             Todo::create([
-                'user_id' => $user->id,
+                'user_id' => rand(1, 2),
                 'title' => 'Todo ' . Str::random(10),
                 'description' => 'Deskripsi ' . Str::random(30),
                 'status' => $statuses[array_rand($statuses)],
