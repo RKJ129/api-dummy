@@ -21,13 +21,13 @@ class TodoController extends Controller
     public function index(Request $request)
     {
         $user = auth('api')->user();
+
         $data = Todo::with(['user', 'images', 'comments'])
             ->withCount(['likeds', 'dislikeds', 'comments'])
             ->when($request->filled('mine') && $request->mine == 'true', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
-            // ->where('user_id', $user->id)
-            ->when($request->filled('search'), function($query) use ($request) {
+            ->when($request->filled('search'), function ($query) use ($request) {
                 $query->where(function ($q) use ($request) {
                     $q->where('title', 'like', '%' . $request->search . '%')
                     ->orWhere('description', 'like', '%' . $request->search . '%')
@@ -39,18 +39,23 @@ class TodoController extends Controller
             })
             ->latest()
             ->paginate(10);
-            // ->get();
+
+        // Tambahkan user_reaction secara manual di masing-masing item
+        $data->getCollection()->transform(function ($todo) use ($user) {
+            $like = $todo->likeds()->where('user_id', $user->id)->exists();
+            $dislike = $todo->dislikeds()->where('user_id', $user->id)->exists();
+
+            $todo->user_reaction = $like ? 'like' : ($dislike ? 'dislike' : null);
+            return $todo;
+        });
 
         return response()->json([
-            'success'=>true,
-            'message'=>'Berhasil mengambil data',
-            'data'=> $data,
+            'success' => true,
+            'message' => 'Berhasil mengambil data',
+            'data' => $data,
         ]);
-
-        // return new TodoResource(true, 'Berhasil mengambil data!', $data);
     }
-
-    /**
+/**
      * Show the form for creating a new resource.
      */
     public function create()
@@ -116,21 +121,30 @@ class TodoController extends Controller
         //
         $user = auth('api')->user();
 
-        $todo->load(['user', 'images', 'comments'])
-             ->loadCount(['likeds', 'dislikeds', 'comments']);
 
         if (!$todo) {
             return response()->json([
                 'success' => false,
                 'message' => 'Data tidak ditemukan atau bukan milik user ini',
                 'data' => null
-             ], 404);
-         }
+            ], 404);
+        }
+
+        $todo->load(['user', 'images', 'comments'])
+             ->loadCount(['likeds', 'dislikeds', 'comments']);
+
+        //cek apakah user sudah like/dislike
+        $hasLiked = $todo->likeds()->where('user_id', $user->id)->exists();
+        $hasDisliked = $todo->dislikeds()->where('user_id', $user->id)->exists();
 
          return response()->json([
             'success' => true,
             'message' => 'Berhasil mengambil data!',
-            'data' => $todo
+            'data' => $todo,
+            'reaction_status' => [
+                'liked' => $hasLiked,
+                'disliked' => $hasDisliked,
+            ]
          ]);
     }
 
@@ -240,45 +254,100 @@ class TodoController extends Controller
         ], 200);
     }
 
+    // public function like(Todo $todo)
+    // {
+    //     $like = Liked::create([
+    //         'todo_id' => $todo->id,
+    //         'user_id' => auth('api')->id()
+    //     ]);
+
+    //     $likesCount = $todo->likeds()->count();
+    //     $dislikesCount = $todo->dislikeds()->count();
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Berhasil menyukai',
+    //         'data' => [
+    //             'likes_count' => $likesCount,
+    //             'dislikes_count' => $dislikesCount,
+    //         ]
+    //     ]);
+    // }
+
+    // public function dislike(Todo $todo)
+    // {
+    //     Disliked::create([
+    //         'todo_id' => $todo->id,
+    //         'user_id' => auth('api')->id()
+    //     ]);
+
+    //     $likesCount = $todo->likeds()->count();
+    //     $dislikesCount = $todo->dislikeds()->count();
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Berhasil tidak menyukai',
+    //         'data' => [
+    //             'likes_count' => $likesCount,
+    //             'dislikes_count' => $dislikesCount
+    //         ]
+    //     ]);
+    // }
+
     public function like(Todo $todo)
     {
-        $like = Liked::create([
-            'todo_id' => $todo->id,
-            'user_id' => auth('api')->id()
-        ]);
+        $userId = auth('api')->id();
 
-        $likesCount = $todo->likeds()->count();
-        $dislikesCount = $todo->dislikeds()->count();
+        // Hapus dislike sebelumnya jika ada
+        Disliked::where('todo_id', $todo->id)->where('user_id', $userId)->delete();
+
+        // Cek apakah user sudah like
+        $existingLike = Liked::where('todo_id', $todo->id)->where('user_id', $userId)->first();
+
+        if ($existingLike) {
+            $existingLike->delete(); // toggle off like
+        } else {
+            Liked::create([
+                'todo_id' => $todo->id,
+                'user_id' => $userId
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Berhasil menyukai',
-            'data' => [
-                'likes_count' => $likesCount,
-                'dislikes_count' => $dislikesCount,
-            ]
+            'message' => 'Reaksi like diproses',
+            'likes_count' => $todo->likeds()->count(),
+            'dislikes_count' => $todo->dislikeds()->count(),
         ]);
     }
 
     public function dislike(Todo $todo)
     {
-        Disliked::create([
-            'todo_id' => $todo->id,
-            'user_id' => auth('api')->id()
-        ]);
+        $userId = auth('api')->id();
 
-        $likesCount = $todo->likeds()->count();
-        $dislikesCount = $todo->dislikeds()->count();
+        // Hapus like sebelumnya jika ada
+        Liked::where('todo_id', $todo->id)->where('user_id', $userId)->delete();
+
+        // Cek apakah user sudah dislike
+        $existingDislike = Disliked::where('todo_id', $todo->id)->where('user_id', $userId)->first();
+
+        if ($existingDislike) {
+            $existingDislike->delete(); // toggle off dislike
+        } else {
+            Disliked::create([
+                'todo_id' => $todo->id,
+                'user_id' => $userId
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Berhasil tidak menyukai',
-            'data' => [
-                'likes_count' => $likesCount,
-                'dislikes_count' => $dislikesCount
-            ]
+            'message' => 'Reaksi dislike diproses',
+            'likes_count' => $todo->likeds()->count(),
+            'dislikes_count' => $todo->dislikeds()->count(),
         ]);
     }
+
 
     public function comment(Request $request, Todo $todo)
     {
