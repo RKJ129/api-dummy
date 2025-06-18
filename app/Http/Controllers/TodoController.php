@@ -116,7 +116,8 @@ class TodoController extends Controller
         //
         $user = auth('api')->user();
 
-        $todo->load(['user', 'images', 'comments']);
+        $todo->load(['user', 'images', 'comments'])
+             ->loadCount(['likeds', 'dislikeds', 'comments']);
 
         if (!$todo) {
             return response()->json([
@@ -246,10 +247,16 @@ class TodoController extends Controller
             'user_id' => auth('api')->id()
         ]);
 
+        $likesCount = $todo->likeds()->count();
+        $dislikesCount = $todo->dislikeds()->count();
+
         return response()->json([
             'success' => true,
             'message' => 'Berhasil menyukai',
-            'data' => $like
+            'data' => [
+                'likes_count' => $likesCount,
+                'dislikes_count' => $dislikesCount,
+            ]
         ]);
     }
 
@@ -260,10 +267,16 @@ class TodoController extends Controller
             'user_id' => auth('api')->id()
         ]);
 
+        $likesCount = $todo->likeds()->count();
+        $dislikesCount = $todo->dislikeds()->count();
+
         return response()->json([
             'success' => true,
             'message' => 'Berhasil tidak menyukai',
-            // 'data' => $like
+            'data' => [
+                'likes_count' => $likesCount,
+                'dislikes_count' => $dislikesCount
+            ]
         ]);
     }
 
