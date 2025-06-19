@@ -235,23 +235,46 @@ class TodoController extends Controller
 
     public function destroy(Todo $todo)
     {
-        $images = Image::where('todo_id', $todo->id)->get();
-        if($images) {
-            foreach ($images as $img) {
-                $oldImage = $img->image;
-                if (File::exists(public_path('todo/' . $oldImage))) {
-                    File::delete(public_path('todo/' . $oldImage));
+        DB::beginTransaction();
+        try {
+            //hapus komentar terkait
+            $todo->comments()->delete();
+
+            //hapus gambar di storage
+            $images = Image::where('todo_id', $todo->id)->get();
+            if($images) {
+                foreach ($images as $img) {
+                    $oldImage = $img->image;
+                    if (File::exists(public_path('todo/' . $oldImage))) {
+                        File::delete(public_path('todo/' . $oldImage));
+                    }
                 }
             }
+
+            //hapus data gambar di DB
+            Image::where('todo_id', $todo->id)->delete();
+
+            //hapus post
+            $todo->delete();
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Data telah dihapus',
+                'data'    => null,
+            ], 200);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus post!',
+                'error' => $th->getMessage()
+            ], 500);
         }
 
-        $todo->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Data telah dihapus',
-            'data'    => null,
-        ], 200);
+
+
     }
 
     // public function like(Todo $todo)
